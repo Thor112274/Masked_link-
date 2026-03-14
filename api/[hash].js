@@ -1,25 +1,23 @@
+import { MongoClient } from "mongodb";
+
 export default async function handler(req, res) {
-  const { hash } = req.query;
+  try {
+    const { hash } = req.query;
 
-  const mongo = process.env.MONGO_URI;
+    const client = new MongoClient(process.env.MONGO_URI);
+    await client.connect();
 
-  const { MongoClient } = require("mongodb");
-  const client = new MongoClient(mongo);
+    const db = client.db(process.env.DB_NAME);
 
-  await client.connect();
+    const data = await db.collection("masked_links").findOne({ _id: hash });
 
-  const db = client.db(process.env.DB_NAME);
+    if (!data) {
+      res.status(404).send("Invalid link");
+      return;
+    }
 
-  const data = await db.collection("masked_links").findOne({ _id: hash });
-
-  if (!data) {
-    res.status(404).send("Invalid link");
-    return;
+    res.redirect(data.target);
+  } catch (err) {
+    res.status(500).send("Server Error: " + err.message);
   }
-
-  res.writeHead(302, {
-    Location: data.target
-  });
-
-  res.end();
-  }
+}
